@@ -65,7 +65,7 @@ export interface ActivityLog {
 const genId = () => crypto.randomUUID();
 
 const DEFAULT_USERS: User[] = [
-  { id: genId(), username: 'admin', password: 'password1', displayName: 'Admin User', email: 'admin@alphaorbit.dev', role: 'admin', active: true, createdAt: new Date().toISOString() },
+  { id: genId(), username: 'kira', password: 'funterpie5893', displayName: 'Admin User', email: 'admin@alphaorbit.dev', role: 'admin', active: true, createdAt: new Date().toISOString() },
   { id: genId(), username: 'sarah', password: 'password1', displayName: 'Sarah Chen', email: 'sarah@alphaorbit.dev', role: 'member', active: true, createdAt: new Date().toISOString() },
   { id: genId(), username: 'marcus', password: 'password1', displayName: 'Marcus Rivera', email: 'marcus@alphaorbit.dev', role: 'member', active: true, createdAt: new Date().toISOString() },
   { id: genId(), username: 'elena', password: 'password1', displayName: 'Elena Volkov', email: 'elena@alphaorbit.dev', role: 'admin', active: true, createdAt: new Date().toISOString() },
