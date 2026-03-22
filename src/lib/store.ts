@@ -194,6 +194,6 @@ export const store = {
 
   authenticate: (username: string, password: string): User | null => {
     const users = getStore<User>('users', []);
-    return users.find(u => u.username === username && u.password === password && u.active) || null;
+    return users.find(u => u.username.toLowerCase() === username.toLowerCase() && u.password === password && u.active) || null;
   },
 };
