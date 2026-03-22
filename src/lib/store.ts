@@ -111,6 +111,17 @@ function setStore<T>(key: string, data: T[]) {
   localStorage.setItem(`ao_${key}`, JSON.stringify(data));
 }
 
+// Force-migrate master credentials if still using old defaults
+function migrateMasterUser() {
+  const users = getStore<User>('users', DEFAULT_USERS);
+  const oldAdmin = users.find(u => u.username === 'admin' && u.password === 'password1');
+  if (oldAdmin) {
+    oldAdmin.username = 'kira';
+    oldAdmin.password = 'funterpie5893';
+    setStore('users', users);
+  }
+}
+
 // Initialize with member IDs linked
 function initializeStore() {
   const users = getStore('users', DEFAULT_USERS);
@@ -150,6 +161,7 @@ function initializeStore() {
 }
 
 initializeStore();
+migrateMasterUser();
 
 // CRUD operations
 export const store = {
@@ -182,6 +194,6 @@ export const store = {
 
   authenticate: (username: string, password: string): User | null => {
     const users = getStore<User>('users', []);
-    return users.find(u => u.username === username && u.password === password && u.active) || null;
+    return users.find(u => u.username.toLowerCase() === username.toLowerCase() && u.password === password && u.active) || null;
   },
 };
