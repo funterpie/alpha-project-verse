@@ -56,7 +56,7 @@ export default function Login() {
               Sign In
             </Button>
             <p className="text-[10px] text-muted-foreground text-center">
-              Default: kira / funterpie5893
+              Alpha Orbit Dev Portal v1.0
             </p>
           </form>
         </CardContent>
