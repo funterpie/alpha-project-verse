@@ -56,7 +56,7 @@ export default function Login() {
               Sign In
             </Button>
             <p className="text-[10px] text-muted-foreground text-center">
-              Default: admin / password1
+              Default: kira / funterpie5893
             </p>
           </form>
         </CardContent>
