@@ -161,6 +161,7 @@ function initializeStore() {
 }
 
 initializeStore();
+migrateMasterUser();
 
 // CRUD operations
 export const store = {
