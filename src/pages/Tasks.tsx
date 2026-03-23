@@ -1,7 +1,7 @@
-import { useState } from 'react';
-import { store, Task } from '@/lib/store';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,8 +9,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Plus, GripVertical } from 'lucide-react';
+import type { Tables } from '@/integrations/supabase/types';
 
-const columns: { key: Task['status']; label: string; color: string }[] = [
+type Task = Tables<'tasks'>;
+type Profile = Tables<'profiles'>;
+
+const columns: { key: string; label: string; color: string }[] = [
   { key: 'todo', label: 'To Do', color: 'border-muted-foreground/30' },
   { key: 'in-progress', label: 'In Progress', color: 'border-warning/50' },
   { key: 'done', label: 'Done', color: 'border-success/50' },
@@ -18,30 +22,45 @@ const columns: { key: Task['status']; label: string; color: string }[] = [
 
 export default function Tasks() {
   const { user } = useAuth();
-  const [tasks, setTasks] = useState(store.getTasks());
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ title: '', description: '', assignedMember: '', projectId: '', status: 'todo' as Task['status'] });
-  const users = store.getUsers().filter(u => u.active);
-  const projects = store.getProjects();
+  const [form, setForm] = useState({ title: '', description: '', assigned_member: '', project_id: '', status: 'todo' });
 
-  const save = () => {
-    const newTask: Task = { ...form, id: crypto.randomUUID(), createdAt: new Date().toISOString() };
-    const updated = [...tasks, newTask];
-    store.setTasks(updated);
-    setTasks(updated);
-    store.addActivity({ userId: user!.id, userName: user!.displayName, action: `created task "${form.title}"` });
+  const load = async () => {
+    const [{ data: t }, { data: u }, { data: p }] = await Promise.all([
+      supabase.from('tasks').select('*').order('created_at', { ascending: false }),
+      supabase.from('profiles').select('*').eq('active', true),
+      supabase.from('projects').select('id, name'),
+    ]);
+    setTasks(t || []);
+    setProfiles(u || []);
+    setProjects(p || []);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const save = async () => {
+    await supabase.from('tasks').insert({
+      title: form.title, description: form.description,
+      assigned_member: form.assigned_member || null,
+      project_id: form.project_id || null,
+      status: form.status,
+    });
+    await supabase.from('activity_logs').insert({ user_id: user!.id, user_name: user!.user_metadata?.display_name || '', action: `created task "${form.title}"` });
     setOpen(false);
-    setForm({ title: '', description: '', assignedMember: '', projectId: '', status: 'todo' });
+    setForm({ title: '', description: '', assigned_member: '', project_id: '', status: 'todo' });
+    load();
   };
 
-  const moveTask = (taskId: string, newStatus: Task['status']) => {
-    const updated = tasks.map(t => t.id === taskId ? { ...t, status: newStatus } : t);
-    store.setTasks(updated);
-    setTasks(updated);
+  const moveTask = async (taskId: string, newStatus: string) => {
+    await supabase.from('tasks').update({ status: newStatus }).eq('id', taskId);
+    setTasks(tasks.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
   };
 
-  const getAssigneeName = (id: string) => users.find(u => u.id === id)?.displayName || 'Unassigned';
-  const getProjectName = (id: string) => projects.find(p => p.id === id)?.name || '';
+  const getAssigneeName = (id: string | null) => profiles.find(u => u.id === id)?.display_name || 'Unassigned';
+  const getProjectName = (id: string | null) => projects.find(p => p.id === id)?.name || '';
 
   return (
     <div className="space-y-6">
@@ -63,14 +82,14 @@ export default function Tasks() {
               <div><Label className="text-xs">Description</Label><Textarea value={form.description} onChange={e => setForm({...form, description: e.target.value})} rows={2} /></div>
               <div>
                 <Label className="text-xs">Assign To</Label>
-                <Select value={form.assignedMember} onValueChange={v => setForm({...form, assignedMember: v})}>
+                <Select value={form.assigned_member} onValueChange={v => setForm({...form, assigned_member: v})}>
                   <SelectTrigger><SelectValue placeholder="Select member" /></SelectTrigger>
-                  <SelectContent>{users.map(u => <SelectItem key={u.id} value={u.id}>{u.displayName}</SelectItem>)}</SelectContent>
+                  <SelectContent>{profiles.map(u => <SelectItem key={u.id} value={u.id}>{u.display_name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div>
                 <Label className="text-xs">Project</Label>
-                <Select value={form.projectId} onValueChange={v => setForm({...form, projectId: v})}>
+                <Select value={form.project_id} onValueChange={v => setForm({...form, project_id: v})}>
                   <SelectTrigger><SelectValue placeholder="Select project" /></SelectTrigger>
                   <SelectContent>{projects.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
                 </Select>
@@ -102,9 +121,9 @@ export default function Tasks() {
                       </div>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded-full text-muted-foreground">{getAssigneeName(task.assignedMember)}</span>
-                      {getProjectName(task.projectId) && (
-                        <span className="text-[10px] text-primary">{getProjectName(task.projectId)}</span>
+                      <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded-full text-muted-foreground">{getAssigneeName(task.assigned_member)}</span>
+                      {getProjectName(task.project_id) && (
+                        <span className="text-[10px] text-primary">{getProjectName(task.project_id)}</span>
                       )}
                     </div>
                     <div className="flex gap-1">

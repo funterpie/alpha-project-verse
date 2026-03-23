@@ -19,7 +19,7 @@ const mainNav = [
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
-  const { user, logout, isAdmin } = useAuth();
+  const { profile, logout, isAdmin } = useAuth();
   const { theme, toggle } = useTheme();
 
   return (
@@ -65,14 +65,14 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="border-t border-border p-3">
-        {!collapsed && user && (
+        {!collapsed && profile && (
           <div className="flex items-center gap-2 mb-3 px-1">
             <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-primary text-xs font-bold">
-              {user.displayName.split(' ').map(n => n[0]).join('')}
+              {profile.display_name.split(' ').map(n => n[0]).join('')}
             </div>
             <div className="flex flex-col min-w-0">
-              <span className="text-xs font-medium text-foreground truncate">{user.displayName}</span>
-              <span className="text-[10px] text-muted-foreground capitalize">{user.role}</span>
+              <span className="text-xs font-medium text-foreground truncate">{profile.display_name}</span>
+              <span className="text-[10px] text-muted-foreground capitalize">{isAdmin ? 'admin' : 'member'}</span>
             </div>
           </div>
         )}
