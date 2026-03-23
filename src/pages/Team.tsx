@@ -1,9 +1,28 @@
-import { store } from '@/lib/store';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Mail, Shield, User } from 'lucide-react';
+import type { Tables } from '@/integrations/supabase/types';
+
+type Profile = Tables<'profiles'>;
 
 export default function Team() {
-  const users = store.getUsers().filter(u => u.active);
+  const [users, setUsers] = useState<(Profile & { role: string })[]>([]);
+
+  useEffect(() => {
+    const load = async () => {
+      const [{ data: profiles }, { data: roles }] = await Promise.all([
+        supabase.from('profiles').select('*').eq('active', true),
+        supabase.from('user_roles').select('*'),
+      ]);
+      const r = roles || [];
+      setUsers((profiles || []).map(p => ({
+        ...p,
+        role: r.find(x => x.user_id === p.id)?.role || 'member',
+      })));
+    };
+    load();
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -18,10 +37,10 @@ export default function Team() {
             <CardContent className="p-5">
               <div className="flex items-center gap-3 mb-3">
                 <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm">
-                  {u.displayName.split(' ').map(n => n[0]).join('')}
+                  {u.display_name.split(' ').map(n => n[0]).join('')}
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-foreground">{u.displayName}</p>
+                  <p className="text-sm font-semibold text-foreground">{u.display_name}</p>
                   <p className="text-xs text-muted-foreground">@{u.username}</p>
                 </div>
               </div>

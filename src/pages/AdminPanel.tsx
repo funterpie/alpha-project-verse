@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { store, User, ActivityLog } from '@/lib/store';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,52 +10,94 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Pencil, Trash2, UserX, UserCheck, Circle } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import type { Tables } from '@/integrations/supabase/types';
 
-const emptyUser = { username: '', password: '', displayName: '', email: '', role: 'member' as 'admin' | 'member' };
+type Profile = Tables<'profiles'>;
+type ActivityLog = Tables<'activity_logs'>;
 
 export default function AdminPanel() {
-  const { user: currentUser, isAdmin } = useAuth();
-  const [users, setUsers] = useState(store.getUsers());
-  const [editing, setEditing] = useState<User | null>(null);
-  const [form, setForm] = useState(emptyUser);
+  const { user, isAdmin } = useAuth();
+  const { toast } = useToast();
+  const [users, setUsers] = useState<(Profile & { role: string })[]>([]);
+  const [activity, setActivity] = useState<ActivityLog[]>([]);
+  const [editing, setEditing] = useState<(Profile & { role: string }) | null>(null);
+  const [form, setForm] = useState({ username: '', password: '', displayName: '', email: '', role: 'member' });
   const [open, setOpen] = useState(false);
-  const [activity] = useState<ActivityLog[]>(store.getActivity());
+  const [saving, setSaving] = useState(false);
 
   if (!isAdmin) return <div className="p-8 text-center text-muted-foreground">Access denied. Admin only.</div>;
 
-  const save = () => {
-    let updated: User[];
-    if (editing) {
-      updated = users.map(u => u.id === editing.id ? { ...editing, ...form } : u);
-      store.addActivity({ userId: currentUser!.id, userName: currentUser!.displayName, action: `updated user "${form.displayName}"` });
-    } else {
-      updated = [...users, { ...form, id: crypto.randomUUID(), active: true, createdAt: new Date().toISOString() }];
-      store.addActivity({ userId: currentUser!.id, userName: currentUser!.displayName, action: `created user "${form.displayName}"` });
+  const load = async () => {
+    const [{ data: profiles }, { data: roles }, { data: logs }] = await Promise.all([
+      supabase.from('profiles').select('*'),
+      supabase.from('user_roles').select('*'),
+      supabase.from('activity_logs').select('*').order('created_at', { ascending: false }).limit(50),
+    ]);
+    const r = roles || [];
+    setUsers((profiles || []).map(p => ({ ...p, role: r.find(x => x.user_id === p.id)?.role || 'member' })));
+    setActivity(logs || []);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const callAdmin = async (body: any) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await supabase.functions.invoke('admin-users', {
+      body,
+      headers: { Authorization: `Bearer ${session?.access_token}` },
+    });
+    if (res.error) throw new Error(res.error.message);
+    if (res.data?.error) throw new Error(res.data.error);
+    return res.data;
+  };
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      if (editing) {
+        await callAdmin({ action: 'update_user', user_id: editing.id, email: form.email, password: form.password || undefined, display_name: form.displayName, username: form.username });
+        if (form.role !== editing.role) {
+          await callAdmin({ action: 'update_role', user_id: editing.id, role: form.role });
+        }
+        toast({ title: 'User updated' });
+      } else {
+        await callAdmin({ action: 'create_user', email: form.email, password: form.password, username: form.username, display_name: form.displayName, role: form.role });
+        toast({ title: 'User created' });
+      }
+      setOpen(false);
+      setEditing(null);
+      setForm({ username: '', password: '', displayName: '', email: '', role: 'member' });
+      load();
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
     }
-    store.setUsers(updated);
-    setUsers(updated);
-    setOpen(false);
-    setEditing(null);
-    setForm(emptyUser);
+    setSaving(false);
   };
 
-  const toggleActive = (u: User) => {
-    const updated = users.map(x => x.id === u.id ? { ...x, active: !x.active } : x);
-    store.setUsers(updated);
-    setUsers(updated);
-    store.addActivity({ userId: currentUser!.id, userName: currentUser!.displayName, action: `${u.active ? 'deactivated' : 'activated'} user "${u.displayName}"` });
+  const toggleActive = async (u: Profile & { role: string }) => {
+    try {
+      await callAdmin({ action: 'toggle_active', user_id: u.id, active: !u.active });
+      toast({ title: u.active ? 'User deactivated' : 'User activated' });
+      load();
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    }
   };
 
-  const remove = (u: User) => {
-    const updated = users.filter(x => x.id !== u.id);
-    store.setUsers(updated);
-    setUsers(updated);
-    store.addActivity({ userId: currentUser!.id, userName: currentUser!.displayName, action: `deleted user "${u.displayName}"` });
+  const remove = async (u: Profile & { role: string }) => {
+    try {
+      await callAdmin({ action: 'delete_user', user_id: u.id });
+      toast({ title: 'User deleted' });
+      load();
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    }
   };
 
-  const openEdit = (u: User) => {
+  const openEdit = (u: Profile & { role: string }) => {
     setEditing(u);
-    setForm({ username: u.username, password: u.password, displayName: u.displayName, email: u.email, role: u.role });
+    setForm({ username: u.username, password: '', displayName: u.display_name, email: u.email, role: u.role });
     setOpen(true);
   };
 
@@ -74,7 +116,7 @@ export default function AdminPanel() {
 
         <TabsContent value="users" className="mt-4 space-y-4">
           <div className="flex justify-end">
-            <Dialog open={open} onOpenChange={v => { setOpen(v); if (!v) { setEditing(null); setForm(emptyUser); } }}>
+            <Dialog open={open} onOpenChange={v => { setOpen(v); if (!v) { setEditing(null); setForm({ username: '', password: '', displayName: '', email: '', role: 'member' }); } }}>
               <DialogTrigger asChild>
                 <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90">
                   <Plus className="h-4 w-4 mr-1" /> New User
@@ -86,10 +128,10 @@ export default function AdminPanel() {
                   <div><Label className="text-xs">Display Name</Label><Input value={form.displayName} onChange={e => setForm({...form, displayName: e.target.value})} /></div>
                   <div><Label className="text-xs">Username</Label><Input value={form.username} onChange={e => setForm({...form, username: e.target.value})} /></div>
                   <div><Label className="text-xs">Email</Label><Input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} /></div>
-                  <div><Label className="text-xs">Password</Label><Input type="password" value={form.password} onChange={e => setForm({...form, password: e.target.value})} /></div>
+                  <div><Label className="text-xs">Password{editing ? ' (leave blank to keep)' : ''}</Label><Input type="password" value={form.password} onChange={e => setForm({...form, password: e.target.value})} /></div>
                   <div>
                     <Label className="text-xs">Role</Label>
-                    <Select value={form.role} onValueChange={v => setForm({...form, role: v as 'admin' | 'member'})}>
+                    <Select value={form.role} onValueChange={v => setForm({...form, role: v})}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="admin">Admin</SelectItem>
@@ -97,7 +139,9 @@ export default function AdminPanel() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <Button onClick={save} className="w-full bg-primary text-primary-foreground hover:bg-primary/90">Save</Button>
+                  <Button onClick={save} disabled={saving} className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
+                    {saving ? 'Saving...' : 'Save'}
+                  </Button>
                 </div>
               </DialogContent>
             </Dialog>
@@ -118,7 +162,7 @@ export default function AdminPanel() {
                   <TableRow key={u.id}>
                     <TableCell>
                       <div>
-                        <p className="text-sm font-medium">{u.displayName}</p>
+                        <p className="text-sm font-medium">{u.display_name}</p>
                         <p className="text-xs text-muted-foreground">@{u.username}</p>
                       </div>
                     </TableCell>
@@ -134,7 +178,9 @@ export default function AdminPanel() {
                         <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => toggleActive(u)}>
                           {u.active ? <UserX className="h-3 w-3 text-warning" /> : <UserCheck className="h-3 w-3 text-success" />}
                         </Button>
-                        <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => remove(u)}><Trash2 className="h-3 w-3" /></Button>
+                        {u.id !== user?.id && (
+                          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => remove(u)}><Trash2 className="h-3 w-3" /></Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -150,12 +196,12 @@ export default function AdminPanel() {
             <CardContent className="space-y-2">
               {activity.length === 0 ? (
                 <p className="text-xs text-muted-foreground py-4 text-center">No activity recorded yet.</p>
-              ) : activity.slice(0, 50).map(a => (
+              ) : activity.map(a => (
                 <div key={a.id} className="flex items-start gap-3 py-2 border-b border-border last:border-0">
                   <Circle className="h-2 w-2 mt-1.5 text-primary fill-primary shrink-0" />
                   <div className="min-w-0">
-                    <p className="text-xs text-foreground"><span className="font-medium">{a.userName}</span> {a.action}</p>
-                    <p className="text-[10px] text-muted-foreground">{new Date(a.timestamp).toLocaleString()}</p>
+                    <p className="text-xs text-foreground"><span className="font-medium">{a.user_name}</span> {a.action}</p>
+                    <p className="text-[10px] text-muted-foreground">{new Date(a.created_at).toLocaleString()}</p>
                   </div>
                 </div>
               ))}

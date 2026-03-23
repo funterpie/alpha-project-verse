@@ -8,16 +8,18 @@ import { Orbit, AlertCircle } from 'lucide-react';
 
 export default function Login() {
   const { login } = useAuth();
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (!login(username, password)) {
-      setError('Invalid credentials or account deactivated');
-    }
+    setLoading(true);
+    const err = await login(email, password);
+    if (err) setError(err);
+    setLoading(false);
   };
 
   return (
@@ -45,18 +47,18 @@ export default function Login() {
               </div>
             )}
             <div className="space-y-2">
-              <Label htmlFor="username" className="text-xs">Username</Label>
-              <Input id="username" value={username} onChange={e => setUsername(e.target.value)} placeholder="admin" autoFocus />
+              <Label htmlFor="email" className="text-xs">Email</Label>
+              <Input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@alphaorbit.dev" autoFocus />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password" className="text-xs">Password</Label>
               <Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" />
             </div>
-            <Button type="submit" className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
-              Sign In
+            <Button type="submit" className="w-full bg-primary text-primary-foreground hover:bg-primary/90" disabled={loading}>
+              {loading ? 'Signing in...' : 'Sign In'}
             </Button>
             <p className="text-[10px] text-muted-foreground text-center">
-              Alpha Orbit Dev Portal v1.0
+              Alpha Orbit Dev Portal v2.0
             </p>
           </form>
         </CardContent>

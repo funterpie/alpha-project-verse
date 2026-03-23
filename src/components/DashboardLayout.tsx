@@ -3,7 +3,7 @@ import { AppSidebar } from '@/components/AppSidebar';
 import { useAuth } from '@/contexts/AuthContext';
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { profile } = useAuth();
 
   return (
     <SidebarProvider>
@@ -17,7 +17,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             </div>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <span className="hidden sm:inline">Welcome,</span>
-              <span className="font-medium text-foreground">{user?.displayName}</span>
+              <span className="font-medium text-foreground">{profile?.display_name}</span>
             </div>
           </header>
           <main className="flex-1 p-4 md:p-6 overflow-auto animate-fade-in">

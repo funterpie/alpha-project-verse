@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { store, Client } from '@/lib/store';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,42 +8,48 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Pencil, Trash2, Mail, Phone } from 'lucide-react';
+import type { Tables } from '@/integrations/supabase/types';
 
-const emptyClient: Omit<Client, 'id' | 'createdAt'> = { name: '', company: '', email: '', phone: '', projectAssigned: '', notes: '' };
+type Client = Tables<'clients'>;
+const emptyClient = { name: '', company: '', email: '', phone: '', project_assigned: '', notes: '' };
 
 export default function Clients() {
   const { isAdmin, user } = useAuth();
-  const [clients, setClients] = useState(store.getClients());
+  const [clients, setClients] = useState<Client[]>([]);
   const [editing, setEditing] = useState<Client | null>(null);
   const [form, setForm] = useState(emptyClient);
   const [open, setOpen] = useState(false);
 
-  const save = () => {
-    let updated: Client[];
+  const load = async () => {
+    const { data } = await supabase.from('clients').select('*').order('created_at', { ascending: false });
+    setClients(data || []);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const save = async () => {
     if (editing) {
-      updated = clients.map(c => c.id === editing.id ? { ...editing, ...form } : c);
-      store.addActivity({ userId: user!.id, userName: user!.displayName, action: `updated client "${form.name}"` });
+      await supabase.from('clients').update(form).eq('id', editing.id);
+      await supabase.from('activity_logs').insert({ user_id: user!.id, user_name: user!.user_metadata?.display_name || '', action: `updated client "${form.name}"` });
     } else {
-      updated = [...clients, { ...form, id: crypto.randomUUID(), createdAt: new Date().toISOString() }];
-      store.addActivity({ userId: user!.id, userName: user!.displayName, action: `added client "${form.name}"` });
+      await supabase.from('clients').insert(form);
+      await supabase.from('activity_logs').insert({ user_id: user!.id, user_name: user!.user_metadata?.display_name || '', action: `added client "${form.name}"` });
     }
-    store.setClients(updated);
-    setClients(updated);
     setOpen(false);
     setEditing(null);
     setForm(emptyClient);
+    load();
   };
 
-  const remove = (c: Client) => {
-    const updated = clients.filter(x => x.id !== c.id);
-    store.setClients(updated);
-    setClients(updated);
-    store.addActivity({ userId: user!.id, userName: user!.displayName, action: `removed client "${c.name}"` });
+  const remove = async (c: Client) => {
+    await supabase.from('clients').delete().eq('id', c.id);
+    await supabase.from('activity_logs').insert({ user_id: user!.id, user_name: user!.user_metadata?.display_name || '', action: `removed client "${c.name}"` });
+    load();
   };
 
   const openEdit = (c: Client) => {
     setEditing(c);
-    setForm({ name: c.name, company: c.company, email: c.email, phone: c.phone, projectAssigned: c.projectAssigned, notes: c.notes });
+    setForm({ name: c.name, company: c.company, email: c.email, phone: c.phone, project_assigned: c.project_assigned, notes: c.notes });
     setOpen(true);
   };
 
@@ -68,7 +74,7 @@ export default function Clients() {
                 <div><Label className="text-xs">Company</Label><Input value={form.company} onChange={e => setForm({...form, company: e.target.value})} /></div>
                 <div><Label className="text-xs">Email</Label><Input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} /></div>
                 <div><Label className="text-xs">Phone</Label><Input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} /></div>
-                <div><Label className="text-xs">Assigned Project</Label><Input value={form.projectAssigned} onChange={e => setForm({...form, projectAssigned: e.target.value})} /></div>
+                <div><Label className="text-xs">Assigned Project</Label><Input value={form.project_assigned} onChange={e => setForm({...form, project_assigned: e.target.value})} /></div>
                 <div><Label className="text-xs">Notes</Label><Textarea value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} rows={2} /></div>
                 <Button onClick={save} className="w-full bg-primary text-primary-foreground hover:bg-primary/90">Save</Button>
               </div>
@@ -99,7 +105,7 @@ export default function Clients() {
                     <span className="flex items-center gap-1 text-xs text-muted-foreground"><Phone className="h-3 w-3" />{c.phone}</span>
                   </div>
                 </TableCell>
-                <TableCell className="text-xs text-muted-foreground hidden lg:table-cell">{c.projectAssigned}</TableCell>
+                <TableCell className="text-xs text-muted-foreground hidden lg:table-cell">{c.project_assigned}</TableCell>
                 {isAdmin && (
                   <TableCell>
                     <div className="flex gap-1">
