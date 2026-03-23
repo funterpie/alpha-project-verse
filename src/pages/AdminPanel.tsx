@@ -26,8 +26,6 @@ export default function AdminPanel() {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  if (!isAdmin) return <div className="p-8 text-center text-muted-foreground">Access denied. Admin only.</div>;
-
   const load = async () => {
     const [{ data: profiles }, { data: roles }, { data: logs }] = await Promise.all([
       supabase.from('profiles').select('*'),
@@ -40,6 +38,8 @@ export default function AdminPanel() {
   };
 
   useEffect(() => { load(); }, []);
+
+  if (!isAdmin) return <div className="p-8 text-center text-muted-foreground">Access denied. Admin only.</div>;
 
   const callAdmin = async (body: any) => {
     const { data: { session } } = await supabase.auth.getSession();
