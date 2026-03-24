@@ -15,6 +15,7 @@ import Chat from "@/pages/Chat";
 import Team from "@/pages/Team";
 import AdminPanel from "@/pages/AdminPanel";
 import Receipts from "@/pages/Receipts";
+import Documents from "@/pages/Documents";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -37,6 +38,7 @@ function AppRoutes() {
       <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
       <Route path="/team" element={<ProtectedRoute><Team /></ProtectedRoute>} />
       <Route path="/receipts" element={<ProtectedRoute><Receipts /></ProtectedRoute>} />
+      <Route path="/documents" element={<ProtectedRoute><Documents /></ProtectedRoute>} />
       <Route path="/admin" element={<ProtectedRoute><AdminPanel /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
