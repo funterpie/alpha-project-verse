@@ -13,6 +13,7 @@ const mainNav = [
   { title: 'Clients', url: '/clients', icon: Users },
   { title: 'Tasks', url: '/tasks', icon: CheckSquare },
   { title: 'Chat', url: '/chat', icon: MessageSquare },
+  { title: 'Receipts', url: '/receipts', icon: Receipt },
   { title: 'Team', url: '/team', icon: UserCog },
 ];
 
