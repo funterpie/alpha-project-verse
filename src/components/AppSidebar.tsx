@@ -1,4 +1,4 @@
-import { LayoutDashboard, FolderKanban, Users, CheckSquare, MessageSquare, UserCog, Shield, LogOut, Sun, Moon, Orbit, Receipt } from 'lucide-react';
+import { LayoutDashboard, FolderKanban, Users, CheckSquare, MessageSquare, UserCog, Shield, LogOut, Sun, Moon, Orbit, Receipt, FileText } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
