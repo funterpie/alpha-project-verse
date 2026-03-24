@@ -14,6 +14,7 @@ import Tasks from "@/pages/Tasks";
 import Chat from "@/pages/Chat";
 import Team from "@/pages/Team";
 import AdminPanel from "@/pages/AdminPanel";
+import Receipts from "@/pages/Receipts";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
