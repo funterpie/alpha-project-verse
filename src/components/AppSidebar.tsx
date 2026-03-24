@@ -1,4 +1,4 @@
-import { LayoutDashboard, FolderKanban, Users, CheckSquare, MessageSquare, UserCog, Shield, LogOut, Sun, Moon, Orbit } from 'lucide-react';
+import { LayoutDashboard, FolderKanban, Users, CheckSquare, MessageSquare, UserCog, Shield, LogOut, Sun, Moon, Orbit, Receipt } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -13,6 +13,7 @@ const mainNav = [
   { title: 'Clients', url: '/clients', icon: Users },
   { title: 'Tasks', url: '/tasks', icon: CheckSquare },
   { title: 'Chat', url: '/chat', icon: MessageSquare },
+  { title: 'Receipts', url: '/receipts', icon: Receipt },
   { title: 'Team', url: '/team', icon: UserCog },
 ];
 
