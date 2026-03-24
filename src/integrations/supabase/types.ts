@@ -193,6 +193,57 @@ export type Database = {
         }
         Relationships: []
       }
+      receipts: {
+        Row: {
+          amount: number
+          client_name: string
+          company_name: string
+          created_at: string
+          description: string
+          discount: number
+          id: string
+          notes: string
+          price: number
+          quantity: number
+          receipt_date: string
+          receipt_number: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount?: number
+          client_name: string
+          company_name?: string
+          created_at?: string
+          description?: string
+          discount?: number
+          id?: string
+          notes?: string
+          price?: number
+          quantity?: number
+          receipt_date?: string
+          receipt_number: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          client_name?: string
+          company_name?: string
+          created_at?: string
+          description?: string
+          discount?: number
+          id?: string
+          notes?: string
+          price?: number
+          quantity?: number
+          receipt_date?: string
+          receipt_number?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       tasks: {
         Row: {
           assigned_member: string | null
