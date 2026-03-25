@@ -42,9 +42,15 @@ Deno.serve(async (req) => {
         email,
         password,
         email_confirm: true,
-        user_metadata: { username, display_name, role: role || 'member' },
+        user_metadata: { username, display_name },
       })
       if (error) return new Response(JSON.stringify({ error: error.message }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      
+      // Set role via direct DB update (trigger always assigns 'member')
+      if (role && role !== 'member') {
+        await adminClient.from('user_roles').delete().eq('user_id', data.user.id)
+        await adminClient.from('user_roles').insert({ user_id: data.user.id, role })
+      }
       return new Response(JSON.stringify({ user: data.user }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
