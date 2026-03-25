@@ -30,20 +30,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    let initialSessionHandled = false;
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
         setUser(session.user);
-        // Use setTimeout to avoid Supabase auth deadlock
         setTimeout(() => fetchProfile(session.user.id), 0);
       } else {
         setUser(null);
         setProfile(null);
         setIsAdmin(false);
       }
-      setLoading(false);
+      // Only set loading false from listener after initial session is handled
+      if (initialSessionHandled) {
+        setLoading(false);
+      }
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
+      initialSessionHandled = true;
       if (session?.user) {
         setUser(session.user);
         fetchProfile(session.user.id);
